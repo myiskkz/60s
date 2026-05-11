@@ -70,29 +70,36 @@ class ServiceITNews {
     }
   }
 
-  handleRank(rank: 'day' | 'week' | 'month'): RouterMiddleware<'/it-news'> {
+  handleRank(): RouterMiddleware<'/it-news'> {
     return async (ctx) => {
+      const rankType = ctx.request.url.searchParams.get('type') || 'day'
       const ranks = await this.#fetchRanks()
-      const found = ranks.find((r) => r.type === rank)
+      const found = ranks.find((r) => r.type === rankType)
+
+      if (!found) {
+        ctx.response.status = 400
+        ctx.response.body = Common.buildJson({ error: 'Invalid rank type. Must be one of "day", "week", or "month".' })
+        return
+      }
 
       switch (ctx.state.encoding) {
         case 'text': {
-          ctx.response.body = `IT 之家${rank === 'day' ? '日' : rank === 'week' ? '周' : '月'}榜\n\n${
-            found?.list.map((e, idx) => `${idx + 1}. ${e.title}`).join('\n') ?? ''
+          ctx.response.body = `IT 之家${rankType === 'day' ? '日' : rankType === 'week' ? '周' : '月'}榜\n\n${
+            found.list.map((e, idx) => `${idx + 1}. ${e.title}`).join('\n') ?? ''
           }`
           break
         }
 
         case 'markdown': {
-          ctx.response.body = `# IT 之家${rank === 'day' ? '日' : rank === 'week' ? '周' : '月'}榜\n\n${
-            found?.list.map((e, idx) => `${idx + 1}. [${e.title}](${e.link})`).join('\n\n') ?? ''
+          ctx.response.body = `# IT 之家${rankType === 'day' ? '日' : rankType === 'week' ? '周' : '月'}榜\n\n${
+            found.list.map((e, idx) => `${idx + 1}. [${e.title}](${e.link})`).join('\n\n') ?? ''
           }`
           break
         }
 
         case 'json':
         default: {
-          ctx.response.body = Common.buildJson(found?.list || [])
+          ctx.response.body = Common.buildJson(found.list || [])
           break
         }
       }
